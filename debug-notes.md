@@ -1,0 +1,87 @@
+# Debug Notes
+
+## Error
+
+When I run `aspis.sh` I am getting an error in the Back-end stage of the pipeline:
+
+**Command**
+
+```bash
+./aspis.sh --verbose tests/cpp/simple/add.cpp --eddi 
+```
+
+**Error**
+
+```bash
+Verbose mode ON
+        $ mkdir -p .
+        $ rm -f ./add.ll ./out.ll
+=== Front-end and pre-processing ===
+        $ /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/clang tests/cpp/simple/add.cpp -I -lstdc++ -S -emit-llvm -O0 -Xclang -disable-O0-optnone -o ./add.ll
+        $ /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/llvm-link ./add.ll -o ./out.ll -opaque-pointers
+✔ Emitted and linked IR.
+        $ /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/opt --enable-new-pm=1 --passes=strip ./out.ll -o ./out.ll
+✔ Debug mode disabled, stripped debug symbols.
+        $ /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/opt --enable-new-pm=1 --passes=lowerswitch ./out.ll -o ./out.ll
+        $ /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/opt --enable-new-pm=1 -load-pass-plugin=/home/ubuntu/projects/ASPIS/build/passes/libEDDI.so --passes=func-ret-to-ref ./out.ll -o ./out.ll
+
+=== ASPIS transformations ==========
+        $ /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/opt --enable-new-pm=1 -load-pass-plugin=/home/ubuntu/projects/ASPIS/build/passes/libEDDI.so --passes=eddi-verify ./out.ll -o ./out.ll -S
+✔ Applied data protection passes.
+        $ /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/opt --enable-new-pm=1 --passes=dce,simplifycfg ./out.ll -o ./out.ll
+        $ /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/opt --enable-new-pm=1 -load-pass-plugin=/home/ubuntu/projects/ASPIS/build/passes/libCFCSS.so --passes=cfcss-verify ./out.ll -o ./out.ll -S
+✔ Applied CFC passes.
+✔ Linked excluded files to the compilation.
+        $ /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/opt --enable-new-pm=1 -load-pass-plugin=/home/ubuntu/projects/ASPIS/build/passes/libEDDI.so --passes=duplicate-globals ./out.ll -o ./out.ll -S -S
+✔ Duplicated globals.
+
+=== Back-end =======================
+        $ /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/clang -v -lstdc++ -O0 ./out.ll -o ./out
+clang version 16.0.6
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin
+Found candidate GCC installation: /usr/lib/gcc/x86_64-linux-gnu/11
+Selected GCC installation: /usr/lib/gcc/x86_64-linux-gnu/11
+Candidate multilib: .;@m64
+Selected multilib: .;@m64
+ "/home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/clang-16" -cc1 -triple x86_64-unknown-linux-gnu -emit-obj -mrelax-all -disable-free -clear-ast-before-backend -main-file-name out.ll -mrelocation-model pic -pic-level 2 -pic-is-pie -mframe-pointer=all -fmath-errno -ffp-contract=on -fno-rounding-math -mconstructor-aliases -funwind-tables=2 -target-cpu x86-64 -tune-cpu generic -mllvm -treat-scalable-fixed-error-as-warning -debugger-tuning=gdb -v -fcoverage-compilation-dir=/home/ubuntu/projects/ASPIS -resource-dir /home/ubuntu/projects/llvm-project-16.0.6.src/build/lib/clang/16 -O0 -fdebug-compilation-dir=/home/ubuntu/projects/ASPIS -ferror-limit 19 -fgnuc-version=4.2.1 -fcolor-diagnostics -faddrsig -D__GCC_HAVE_DWARF2_CFI_ASM=1 -o /tmp/out-120cea.o -x ir ./out.ll
+clang -cc1 version 16.0.6 based upon LLVM 16.0.6 default target x86_64-unknown-linux-gnu
+fatal error: error in backend: unknown special variable
+clang-16: error: clang frontend command failed with exit code 70 (use -v to see invocation)
+clang version 16.0.6
+Target: x86_64-unknown-linux-gnu
+Thread model: posix
+InstalledDir: /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin
+clang-16: note: diagnostic msg: Error generating preprocessed source(s) - no preprocessable inputs.
+```
+
+> atm the error seems to be related to the gcc version. I was running gcc 11.0, with gcc 13 seems to be working. This older version seems to be using a different <iostream> library for cpp and resulting in added costructors at the front-end phase.
+
+
+## Log - What I have tried so far
+
+1. llvm/clang version ==
+   -    ```
+        clang version 16.0.6
+        Target: x86_64-unknown-linux-gnu
+        Thread model: posix
+        InstalledDir: /home/ubuntu/projects/llvm-project-16.0.6.src/build/bin
+        ``` 
+2. cmake version == 
+   - ```bash
+        cmake version 3.22.1
+        ```
+3. Checked path to llvm binary with `which clang` == `/home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/clang`  - consistent with installation.
+4. Run with explicit llvm-bin path `./aspis.sh --verbose tests/cpp/simple/add.cpp --eddi --llvm-bin=/home/ubuntu/projects/llvm-project-16.0.6.src/build/bin/` - got same error
+5. ASPIS re-install: remove entire directory, cloned again and built.
+6. Checked different file from `add.cpp`, tried with a simpler hello world - got same error
+7. Backend solo execution
+   - Executed the problematic backend command solo, taking the out.ll generated by the last ASPIS opt pass.
+   - got same error
+8. Tried with/without `-I` option on first link pass
+
+## To do
+
+1. LLVM-re install - still have to do
+2. Manual passes exec 
