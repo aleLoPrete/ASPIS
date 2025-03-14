@@ -165,3 +165,18 @@ Then, apply the last pass and emit the executable:
 opt --enable-new-pm=0 -S -load </path/to/ASPIS/>build/passes/libEDDI.so -duplicate-globals out.ll -o out.ll
 clang out.ll -o out.elf
 ```
+
+## Using ASPIS with Docker
+
+Build the Docker image from the same directory as the Dockerfile
+
+``` bash
+docker-compose build -t aspis
+```
+
+```bash
+docker-compose run --rm aspis /workspace/path/to/your/file
+```
+
+> [!WARNING]
+> At the moment aspis.sh run automatically with the `llvm-bin` option set by default. This is because `which clang`, that is normally used by the script, doesn't work inside the container because of the slightly different installation process.

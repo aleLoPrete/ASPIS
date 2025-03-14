@@ -1,0 +1,9 @@
+services:
+  aspis:
+    image: aspis
+    container_name: aspis_container
+    volumes:
+      - .:/workspace # Mount the current directory to /workspace inside the container
+    working_dir: /workspace # Set the working directory to /workspace
+    entrypoint: [ "bash", "/home/ubuntu/ASPIS/aspis.sh", "--llvm-bin /home/ubuntu/llvm-project-16.0.6.src/build/bin" ]
+    #command: bash /home/ubuntu/ASPIS/aspis.sh
